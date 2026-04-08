@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Windows Password Reset – The Utilman Trick</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --surface2: #1a1e28;
+      --border: #2a2f3e;
+      --green: #39ff8f;
+      --green-dim: #1a7a45;
+      --cyan: #00e5ff;
+      --red: #ff4b6e;
+      --yellow: #ffd166;
+      --text: #c9d1e0;
+      --text-dim: #5c6478;
+      --prompt: #39ff8f;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      line-height: 1.7;
+      min-height: 100vh;
+      padding: 0 0 100px;
+    }
+
+    /* ── PROGRESS BAR ── */
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+      z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, #0d0f14 0%, #111827 60%, #0a1a0f 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 72px 24px 52px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(57,255,143,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(57,255,143,0.1);
+      border: 1px solid var(--green-dim);
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 2px;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: clamp(26px, 5vw, 50px);
+      font-weight: 800;
+      line-height: 1.15;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--green); }
+    .hero p {
+      max-width: 560px;
+      margin: 0 auto 28px;
+      color: var(--text-dim);
+      font-size: 15px;
+    }
+    .meta {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .meta span { color: var(--cyan); }
+
+    /* ── LAYOUT ── */
+    .page-wrap {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+
+    /* ── SIDEBAR TOC ── */
+    .toc {
+      position: sticky;
+      top: 32px;
+      padding-top: 48px;
+    }
+    .toc-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .toc ul { list-style: none; }
+    .toc ul li { margin-bottom: 2px; }
+    .toc ul li a {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: 5px 10px;
+      border-left: 2px solid var(--border);
+      transition: all 0.2s;
+      border-radius: 0 4px 4px 0;
+    }
+    .toc ul li a:hover,
+    .toc ul li a.active {
+      color: var(--green);
+      border-left-color: var(--green);
+      background: rgba(57,255,143,0.05);
+    }
+
+    /* ── MAIN CONTENT ── */
+    .content { min-width: 0; }
+
+    /* ── WARNING BOX ── */
+    .warning {
+      background: rgba(255,75,110,0.07);
+      border: 1px solid rgba(255,75,110,0.3);
+      border-left: 3px solid var(--red);
+      border-radius: 4px;
+      padding: 16px 20px;
+      margin: 48px 0 32px;
+      font-size: 14px;
+    }
+    .warning strong { color: var(--red); font-family: 'JetBrains Mono', monospace; }
+
+    /* ── SECTION ── */
+    .section { margin-top: 56px; scroll-margin-top: 32px; }
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 8px;
+    }
+    .section h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .step-num {
+      background: var(--green);
+      color: #000;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .section p { color: var(--text); font-size: 15px; margin-bottom: 12px; }
+    .section code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 3px;
+      color: var(--cyan);
+    }
+
+    /* ── TERMINAL ── */
+    .terminal {
+      background: #080a0e;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 20px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      position: relative;
+    }
+    .terminal-bar {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .dot.r { background: #ff5f57; }
+    .dot.y { background: #ffbd2e; }
+    .dot.g { background: #28ca41; }
+    .terminal-title {
+      margin-left: 8px;
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      flex: 1;
+    }
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1px;
+      padding: 3px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+    .copy-btn:hover { border-color: var(--green); color: var(--green); }
+    .copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+    .terminal-body { padding: 20px 20px 24px; line-height: 2.1; overflow-x: auto; }
+    .line { display: block; white-space: pre; }
+    .prompt { color: var(--prompt); }
+    .cmd { color: #fff; }
+    .out { color: var(--text-dim); }
+    .out-g { color: var(--green); }
+    .out-y { color: var(--yellow); }
+    .out-r { color: var(--red); }
+    .out-c { color: var(--cyan); }
+    .comment { color: #3a4455; }
+
+    /* ── INFO / SUCCESS BOXES ── */
+    .info {
+      background: rgba(0,229,255,0.05);
+      border: 1px solid rgba(0,229,255,0.15);
+      border-left: 3px solid var(--cyan);
+      border-radius: 4px;
+      padding: 14px 18px;
+      font-size: 14px;
+      margin: 16px 0;
+    }
+    .info strong { color: var(--cyan); }
+    .success {
+      background: rgba(57,255,143,0.05);
+      border: 1px solid rgba(57,255,143,0.2);
+      border-left: 3px solid var(--green);
+      border-radius: 4px;
+      padding: 14px 18px;
+      font-size: 14px;
+      margin: 16px 0;
+    }
+    .success strong { color: var(--green); }
+
+    /* ── DIVIDER / FOOTER ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 60px 0 0; }
+    .footer {
+      text-align: center;
+      padding: 28px 24px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .footer span { color: var(--green); }
+
+    /* ── TABS ── */
+    .tab-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 0;
+      padding: 0 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 1px;
+      padding: 14px 20px 12px;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── AUTHOR CARD ── */
+    .author-section {
+      margin-bottom: 56px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid var(--border);
+    }
+    .author-terminal {
+      background: #060809;
+      border: 1px solid var(--green-dim);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(57,255,143,0.06), 0 0 0 1px rgba(57,255,143,0.04);
+      position: relative;
+    }
+    .author-terminal::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+      opacity: 0.4;
+    }
+    .author-bar {
+      background: #0d1109;
+      border-bottom: 1px solid rgba(57,255,143,0.12);
+      padding: 11px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .author-bar .dot.r { background: #ff5f57; }
+    .author-bar .dot.y { background: #ffbd2e; }
+    .author-bar .dot.g { background: #28ca41; }
+    .author-bar-title {
+      margin-left: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--green);
+      letter-spacing: 2px;
+      opacity: 0.7;
+    }
+    .author-body {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0;
+    }
+    .author-avatar-col {
+      padding: 28px 24px 28px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      border-right: 1px solid rgba(57,255,143,0.08);
+    }
+    .avatar-ring {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 2px solid var(--green-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: #0d1109;
+      box-shadow: 0 0 20px rgba(57,255,143,0.1);
+    }
+    .avatar-ring::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 1px solid rgba(57,255,143,0.15);
+    }
+    .avatar-initials {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: -1px;
+    }
+    .author-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--green);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: blink 1.4s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .author-info-col {
+      padding: 28px 28px 28px 24px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .author-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .author-handle {
+      font-size: 12px;
+      color: var(--green);
+      margin-bottom: 16px;
+      letter-spacing: 1px;
+    }
+    .author-field {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 4px 12px;
+      font-size: 12px;
+      margin-bottom: 6px;
+      line-height: 1.6;
+    }
+    .author-key { color: var(--cyan); }
+    .author-val { color: var(--text); }
+    .author-val a { color: var(--green); text-decoration: none; }
+    .author-val a:hover { text-decoration: underline; }
+    .author-bio {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(57,255,143,0.08);
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text-dim);
+    }
+    .author-bio span { color: var(--green); }
+    .author-links {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .author-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(57,255,143,0.06);
+      border: 1px solid rgba(57,255,143,0.2);
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 5px 12px;
+      border-radius: 3px;
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .author-link:hover {
+      background: rgba(57,255,143,0.12);
+      border-color: var(--green);
+    }
+    @media (max-width: 600px) {
+      .author-body { grid-template-columns: 1fr; }
+      .author-avatar-col { border-right: none; border-bottom: 1px solid rgba(57,255,143,0.08); flex-direction: row; padding: 20px; }
+      .author-field { grid-template-columns: 90px 1fr; }
+    }
+
+    /* ── CONTRIBUTE PANEL ── */
+    .contribute-wrap {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 48px 24px 100px;
+    }
+    .contribute-wrap h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .contribute-wrap p { font-size: 15px; color: var(--text); margin-bottom: 16px; }
+    .contribute-wrap code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 3px;
+      color: var(--cyan);
+    }
+    .contrib-step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 28px;
+    }
+    .contrib-num {
+      background: rgba(57,255,143,0.1);
+      border: 1px solid var(--green-dim);
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      min-width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+    .contrib-body h3 {
+      font-size: 16px;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .contrib-body p { margin-bottom: 8px; font-size: 14px; }
+    .contrib-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .contrib-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      transition: border-color 0.2s;
+    }
+    .contrib-card:hover { border-color: var(--green-dim); }
+    .contrib-card .icon { font-size: 24px; margin-bottom: 10px; }
+    .contrib-card h4 { font-size: 14px; color: #fff; margin-bottom: 6px; }
+    .contrib-card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+    .gh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--green);
+      color: #000;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: 4px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+      margin-top: 8px;
+    }
+    .gh-btn:hover { opacity: 0.85; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      .page-wrap { grid-template-columns: 1fr; }
+      .toc { display: none; }
+      .tab-bar { padding: 0 12px; }
+      .tab-btn { padding: 12px 12px 10px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="badge">Windows Recovery Guide</div>
+  <h1>Reset a Forgotten Windows Password<br/><span>Using the Utilman Trick</span></h1>
+  <p>A step-by-step field guide — no installation media needed. Works on Windows 10 &amp; 11.</p>
+  <div class="meta">
+    <div>OS: <span>Windows 10 / 11</span></div>
+    <div>Level: <span>Intermediate</span></div>
+    <div>Time: <span>~10 min</span></div>
+    <div>Account: <span>Local only</span></div>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('guide', this)">📖 Guide</button>
+  <button class="tab-btn" onclick="switchTab('contribute', this)">🤝 Contribute</button>
+</div>
+
+<!-- TAB: GUIDE -->
+<div class="tab-panel active" id="tab-guide">
+<div class="page-wrap">
+
+  <!-- SIDEBAR TOC -->
+  <nav class="toc">
+    <div class="toc-label">On this page</div>
+    <ul>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#step1">1 · Boot Recovery CMD</a></li>
+      <li><a href="#step2">2 · Swap utilman</a></li>
+      <li><a href="#step3">3 · Reset Password</a></li>
+      <li><a href="#step4">4 · Restore Files</a></li>
+      <li><a href="#troubleshoot">Troubleshooting</a></li>
+    </ul>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="content">
+
+    <!-- DISCLAIMER -->
+    <div class="warning">
+      <strong>⚠ DISCLAIMER</strong> — This guide is for recovering access to your <em>own</em> machine only. Unauthorized access to someone else's computer is illegal. Always reverse the file swap after recovery (Step 4).
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="section" id="overview">
+      <div class="section-label">Overview</div>
+      <h2>How It Works</h2>
+      <p>At the Windows login screen, there is an <strong>Accessibility (Utilman)</strong> button in the bottom-right corner. Before Windows boots, we temporarily replace <code>utilman.exe</code> with <code>cmd.exe</code> — so clicking that button opens a Command Prompt <em>before login</em>, giving admin-level access to reset any local password.</p>
+      <div class="info"><strong>Files involved:</strong> <code>C:\Windows\System32\utilman.exe</code> and <code>C:\Windows\System32\cmd.exe</code></div>
+    </div>
+
+    <!-- STEP 1 -->
+    <div class="section" id="step1">
+      <div class="section-label">Step 01</div>
+      <h2><span class="step-num">1</span> Boot Into Recovery CMD</h2>
+      <p>Force your PC into the <strong>Windows Recovery Environment</strong> by holding <strong>Shift</strong> while clicking Restart, or by interrupting boot 2–3 times (force shutdown during startup).</p>
+      <p>Navigate to: <em>Troubleshoot → Advanced Options → Command Prompt</em></p>
+      <div class="terminal" data-commands="C:&#10;cd Windows\System32">
+        <div class="terminal-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <span class="terminal-title">Command Prompt — Recovery Environment</span>
+          <button class="copy-btn" onclick="copyTerminal(this)">Copy</button>
+        </div>
+        <div class="terminal-body">
+          <span class="line"><span class="prompt">X:\Sources&gt; </span><span class="cmd">C:</span></span>
+          <span class="line"><span class="prompt">C:\&gt; </span><span class="cmd">cd Windows\System32</span></span>
+          <span class="line"><span class="out-g">C:\Windows\System32&gt; </span><span class="comment">// You are now in System32</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="section" id="step2">
+      <div class="section-label">Step 02</div>
+      <h2><span class="step-num">2</span> Swap utilman.exe with cmd.exe</h2>
+      <p>Backup the original <code>utilman.exe</code> by renaming it, then rename <code>cmd.exe</code> to take its place:</p>
+      <div class="terminal" data-commands="ren utilman.exe utilman1.exe&#10;ren cmd.exe utilman.exe&#10;exit">
+        <div class="terminal-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <span class="terminal-title">Command Prompt — System32</span>
+          <button class="copy-btn" onclick="copyTerminal(this)">Copy</button>
+        </div>
+        <div class="terminal-body">
+          <span class="line"><span class="comment">// Backup original utilman</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">ren utilman.exe utilman1.exe</span></span>
+          <span class="line">&nbsp;</span>
+          <span class="line"><span class="comment">// Put cmd.exe in its place</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">ren cmd.exe utilman.exe</span></span>
+          <span class="line">&nbsp;</span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">exit</span></span>
+          <span class="line"><span class="out-g">// PC will restart normally</span></span>
+        </div>
+      </div>
+      <div class="info"><strong>What happened:</strong> utilman.exe is backed up as utilman1.exe. The Accessibility button now launches CMD instead of the accessibility menu.</div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="section" id="step3">
+      <div class="section-label">Step 03</div>
+      <h2><span class="step-num">3</span> Reset the Password</h2>
+      <p>After restart, at the <strong>login screen</strong>, click the <strong>Accessibility icon</strong> (bottom-right corner). A CMD window will open with admin-level access.</p>
+      <div class="terminal" data-commands="control userpasswords2">
+        <div class="terminal-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <span class="terminal-title">Command Prompt — Login Screen (Pre-Auth)</span>
+          <button class="copy-btn" onclick="copyTerminal(this)">Copy</button>
+        </div>
+        <div class="terminal-body">
+          <span class="line"><span class="comment">// Option A — GUI (easier)</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">control userpasswords2</span></span>
+          <span class="line"><span class="out-c">// Select your user → Reset Password → enter new password</span></span>
+          <span class="line">&nbsp;</span>
+          <span class="line"><span class="comment">// Option B — command line</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">net user [username] [newpassword]</span></span>
+          <span class="line"><span class="out-g">The command completed successfully.</span></span>
+          <span class="line">&nbsp;</span>
+          <span class="line"><span class="comment">// To list all local accounts:</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">net user</span></span>
+          <span class="line"><span class="out-y">User accounts for \\DESKTOP-XXXXX</span></span>
+          <span class="line"><span class="out">-----------------------------------------------</span></span>
+          <span class="line"><span class="out">Administrator          John          Guest</span></span>
+        </div>
+      </div>
+      <p>Close CMD and log in with your new password. ✅</p>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="section" id="step4">
+      <div class="section-label">Step 04 — CRITICAL</div>
+      <h2><span class="step-num">4</span> Restore System Files</h2>
+      <p>After logging in, open CMD as <strong>Administrator</strong> (Win + R → <code>cmd</code>) and reverse the swap. Leaving the swap in place is a <strong style="color:var(--red)">security vulnerability</strong> — anyone can open CMD from your login screen.</p>
+      <div class="terminal" data-commands="cd Windows\System32&#10;del utilman.exe&#10;ren utilman1.exe utilman.exe&#10;dir utilman*.exe">
+        <div class="terminal-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <span class="terminal-title">Command Prompt — Run as Administrator</span>
+          <button class="copy-btn" onclick="copyTerminal(this)">Copy</button>
+        </div>
+        <div class="terminal-body">
+          <span class="line"><span class="prompt">C:\&gt; </span><span class="cmd">cd Windows\System32</span></span>
+          <span class="line">&nbsp;</span>
+          <span class="line"><span class="comment">// Delete the fake utilman (which is actually cmd)</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">del utilman.exe</span></span>
+          <span class="line">&nbsp;</span>
+          <span class="line"><span class="comment">// Restore original utilman from backup</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">ren utilman1.exe utilman.exe</span></span>
+          <span class="line">&nbsp;</span>
+          <span class="line"><span class="comment">// Verify — should show only one utilman.exe</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">dir utilman*.exe</span></span>
+          <span class="line"><span class="out-y">03/15/2026  11:02 PM       315,392 utilman.exe</span></span>
+          <span class="line"><span class="out">             1 File(s)        315,392 bytes</span></span>
+          <span class="line">&nbsp;</span>
+          <span class="line"><span class="out-g">✓ Restore complete. System is secure.</span></span>
+        </div>
+      </div>
+      <div class="success"><strong>✅ Done!</strong> Both <code>utilman.exe</code> and <code>cmd.exe</code> are back to their original state. Restart your PC to confirm everything works.</div>
+    </div>
+
+    <!-- TROUBLESHOOTING -->
+    <div class="section" id="troubleshoot">
+      <div class="section-label">Troubleshooting</div>
+      <h2>Common Errors &amp; Fixes</h2>
+      <p><strong style="color:var(--red)">Error:</strong> <em>"A duplicate file name exists, or the file cannot be found"</em> when running <code>ren utilman.exe cmd.exe</code></p>
+      <p>This means <code>cmd.exe</code> already exists in System32. Fix:</p>
+      <div class="terminal" data-commands="del utilman.exe&#10;ren utilman1.exe utilman.exe">
+        <div class="terminal-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <span class="terminal-title">Fix — cmd.exe already exists</span>
+          <button class="copy-btn" onclick="copyTerminal(this)">Copy</button>
+        </div>
+        <div class="terminal-body">
+          <span class="line"><span class="comment">// cmd.exe already exists — just clean up utilman files</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">del utilman.exe</span></span>
+          <span class="line"><span class="prompt">C:\Windows\System32&gt; </span><span class="cmd">ren utilman1.exe utilman.exe</span></span>
+          <span class="line"><span class="out-g">Done. Both files restored.</span></span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+    <div class="footer">
+      For educational &amp; personal recovery purposes only &nbsp;·&nbsp; Windows 10 / 11 &nbsp;·&nbsp;
+      <span>github.com/yourhandle</span>
+    </div>
+
+  </main>
+</div>
+
+</div><!-- /page-wrap -->
+</div><!-- /tab-guide -->
+
+<!-- TAB: CONTRIBUTE -->
+<div class="tab-panel" id="tab-contribute">
+  <div class="contribute-wrap">
+
+    <!-- ABOUT THE AUTHOR -->
+    <div class="author-section">
+      <div class="section-label" style="margin-bottom:16px;">About the Author</div>
+      <div class="author-terminal">
+        <div class="author-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <span class="author-bar-title">whoami — author.profile</span>
+        </div>
+        <div class="author-body">
+          <div class="author-avatar-col">
+            <div class="avatar-ring">
+              <span class="avatar-initials">YN</span>  <!-- change initials -->
+            </div>
+            <div class="author-status">
+              <span class="status-dot"></span> online
+            </div>
+          </div>
+          <div class="author-info-col">
+            <div class="author-name">Your Name Here</div>   <!-- replace -->
+            <div class="author-handle">@yourhandle</div>    <!-- replace -->
+            <div class="author-field">
+              <span class="author-key">role:</span>
+              <span class="author-val">Your Role / Title</span>   <!-- replace -->
+            </div>
+            <div class="author-field">
+              <span class="author-key">location:</span>
+              <span class="author-val">Your City, Country</span>  <!-- replace -->
+            </div>
+            <div class="author-field">
+              <span class="author-key">interests:</span>
+              <span class="author-val">Security, Windows, Networking</span>  <!-- replace -->
+            </div>
+            <div class="author-field">
+              <span class="author-key">github:</span>
+              <span class="author-val"><a href="https://github.com/yourhandle" target="_blank">github.com/yourhandle</a></span>  <!-- replace -->
+            </div>
+            <div class="author-bio">
+              <span>$</span> cat bio.txt<br/>
+              A short line about yourself — who you are, what you do, why you made this guide. Keep it real. <!-- replace this line -->
+            </div>
+            <div class="author-links">
+              <a class="author-link" href="https://github.com/yourhandle" target="_blank">⌥ GitHub</a>       <!-- replace href -->
+              <a class="author-link" href="https://linkedin.com/in/yourhandle" target="_blank">↗ LinkedIn</a> <!-- replace href -->
+              <a class="author-link" href="mailto:you@email.com">✉ Email</a>                                  <!-- replace href -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>🤝 Contribute to This Guide</h2>
+    <p>Found a bug? Know a better way? Want to add a tip? All contributions are welcome — this is a community guide.</p>
+
+    <div class="contrib-cards">
+      <div class="contrib-card">
+        <div class="icon">🐛</div>
+        <h4>Report an Issue</h4>
+        <p>Something wrong or outdated? Open a GitHub issue and describe the problem.</p>
+      </div>
+      <div class="contrib-card">
+        <div class="icon">✏️</div>
+        <h4>Improve the Guide</h4>
+        <p>Add steps, fix typos, or clarify confusing parts via a pull request.</p>
+      </div>
+      <div class="contrib-card">
+        <div class="icon">💡</div>
+        <h4>Suggest a Section</h4>
+        <p>Have a tip or edge case not covered here? Suggest it via an issue.</p>
+      </div>
+      <div class="contrib-card">
+        <div class="icon">⭐</div>
+        <h4>Star the Repo</h4>
+        <p>If this guide helped you, a star helps others find it too.</p>
+      </div>
+    </div>
+
+    <h2 style="margin-top:40px;">How to Contribute</h2>
+    <p style="margin-bottom:28px;">Follow these steps to submit a change via GitHub:</p>
+
+    <div class="contrib-step">
+      <div class="contrib-num">1</div>
+      <div class="contrib-body">
+        <h3>Fork the Repository</h3>
+        <p>Go to the repo on GitHub and click <strong style="color:var(--green)">Fork</strong> (top-right). This creates your own copy.</p>
+      </div>
+    </div>
+
+    <div class="contrib-step">
+      <div class="contrib-num">2</div>
+      <div class="contrib-body">
+        <h3>Edit <code>index.html</code></h3>
+        <p>Make your changes directly on GitHub using the pencil ✏️ icon, or clone locally and edit with any editor.</p>
+        <div class="terminal" data-commands="git clone https://github.com/YOUR_USERNAME/REPO_NAME.git&#10;cd REPO_NAME&#10;# edit index.html&#10;git add index.html&#10;git commit -m &quot;fix: describe your change&quot;&#10;git push">
+          <div class="terminal-bar">
+            <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+            <span class="terminal-title">Terminal — Local Edit Workflow</span>
+            <button class="copy-btn" onclick="copyTerminal(this)">Copy</button>
+          </div>
+          <div class="terminal-body">
+            <span class="line"><span class="prompt">~$ </span><span class="cmd">git clone https://github.com/YOUR_USERNAME/REPO_NAME.git</span></span>
+            <span class="line"><span class="prompt">~$ </span><span class="cmd">cd REPO_NAME</span></span>
+            <span class="line"><span class="comment">// make your edits to index.html</span></span>
+            <span class="line"><span class="prompt">~$ </span><span class="cmd">git add index.html</span></span>
+            <span class="line"><span class="prompt">~$ </span><span class="cmd">git commit -m "fix: describe your change"</span></span>
+            <span class="line"><span class="prompt">~$ </span><span class="cmd">git push</span></span>
+            <span class="line"><span class="out-g">✓ Changes pushed to your fork</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="contrib-step">
+      <div class="contrib-num">3</div>
+      <div class="contrib-body">
+        <h3>Open a Pull Request</h3>
+        <p>Go to the original repo on GitHub → click <strong style="color:var(--cyan)">Compare &amp; pull request</strong> → describe your change → submit.</p>
+      </div>
+    </div>
+
+    <div class="contrib-step">
+      <div class="contrib-num">4</div>
+      <div class="contrib-body">
+        <h3>Wait for Review</h3>
+        <p>The maintainer will review, suggest edits if needed, and merge. Once merged, GitHub Pages auto-deploys the update live. 🚀</p>
+      </div>
+    </div>
+
+    <div class="info" style="margin-top:8px;">
+      <strong>Contribution Guidelines:</strong> Keep changes focused. One fix per PR. Be respectful. This guide is for educational use only — no harmful content.
+    </div>
+
+    <a class="gh-btn" href="https://github.com/yourhandle/windows-recovery-guide" target="_blank">
+      ⭐ View on GitHub
+    </a>
+
+  </div>
+</div><!-- /tab-contribute -->
+
+<script>
+  // ── TAB SWITCHING ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ── COPY BUTTON ──
+  function copyTerminal(btn) {
+    const terminal = btn.closest('.terminal');
+    const commands = terminal.getAttribute('data-commands') || '';
+    navigator.clipboard.writeText(commands).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  // ── PROGRESS BAR ──
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+  });
+
+  // ── ACTIVE TOC LINK ──
+  const sections = document.querySelectorAll('.section[id]');
+  const tocLinks = document.querySelectorAll('.toc a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        tocLinks.forEach(a => a.classList.remove('active'));
+        const active = document.querySelector(`.toc a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
